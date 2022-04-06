@@ -1,0 +1,16 @@
+{
+  "name": "Dca",
+  "license": "UNLICENSED",
+  "scripts": {
+    "codegen": "graph codegen",
+    "build": "graph build",
+    "deploy": "graph deploy --node https://api.thegraph.com/deploy/ HHK-ETH/Dca",
+    "create-local": "graph create --node http://localhost:8020/ HHK-ETH/Dca",
+    "remove-local": "graph remove --node http://localhost:8020/ HHK-ETH/Dca",
+    "deploy-local": "graph deploy --node http://localhost:8020/ --ipfs http://localhost:5001 HHK-ETH/Dca"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-cli": "0.29.0",
+    "@graphprotocol/graph-ts": "0.26.0"
+  }
+}
