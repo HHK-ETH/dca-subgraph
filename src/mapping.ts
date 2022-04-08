@@ -23,6 +23,7 @@ function createExecutedOrder(event: ExecuteDCA, vault: Vault): void {
   executedOrder.amount = event.params.amount;
   executedOrder.timestamp = event.params.timestamp;
   executedOrder.vault = vault.id;
+  executedOrder.executor = event.transaction.from;
 
   executedOrder.save();
 }
@@ -49,6 +50,7 @@ export function handleCreateDCA(event: CreateDCA): void {
   const newVault = Dca.bind(event.params.newVault);
   vault.buyToken = newVault.buyToken();
   vault.sellToken = newVault.sellToken();
+  vault.owner = newVault.owner();
   const dcaData = newVault.dcaData();
   vault.sellTokenPriceFeed = dcaData.value0;
   vault.buyTokenPriceFeed = dcaData.value1;

@@ -6,6 +6,7 @@ type Factory @entity {
 type Vault @entity {
   id: ID!
   factory: Factory!
+  owner: Bytes!
   buyToken: Bytes!
   buyTokenPriceFeed: Bytes!
   sellToken: Bytes!
