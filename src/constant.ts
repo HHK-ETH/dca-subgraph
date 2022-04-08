@@ -1,0 +1,3 @@
+const FACTORY: string = '0x22cE2cac44E09e75751BdB2f3818bC043807b786';
+
+export { FACTORY };

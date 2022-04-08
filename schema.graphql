@@ -1,6 +1,30 @@
-type ExampleEntity @entity {
+type Factory @entity {
   id: ID!
-  count: BigInt!
-  newVault: Bytes! # address
-  ok: BigInt! # uint256
+  vaults: [Vault!]! @derivedFrom(field: "factory")
+}
+
+type Vault @entity {
+  id: ID!
+  factory: Factory!
+  buyToken: Bytes!
+  buyTokenPriceFeed: Bytes!
+  sellToken: Bytes!
+  sellTokenPriceFeed: Bytes!
+  amount: BigInt!
+  balance: BigInt!
+  enoughBalanceToExecute: Boolean!
+  nextExecutableTimestamp: BigInt!
+  epochDuration: BigInt!
+  creationTimestamp: BigInt!
+  executedOrders: [ExecutedOrder!]! @derivedFrom(field: "vault")
+  totalSell: BigInt!
+  totalBuy: BigInt!
+}
+
+type ExecutedOrder @entity {
+  id: ID!
+  timestamp: BigInt!
+  amount: BigInt!
+  executor: Bytes!
+  vault: Vault!
 }

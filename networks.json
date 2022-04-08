@@ -1,7 +1,7 @@
 {
   "matic": {
-    "Dca": {
-      "address": "0x910b50F0D6dE8B865e700D95d345e5358daC088F"
+    "DcaFactory": {
+      "address": "0x22cE2cac44E09e75751BdB2f3818bC043807b786"
     }
   }
 }

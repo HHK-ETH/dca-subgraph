@@ -1,47 +1,98 @@
-import { BigInt } from "@graphprotocol/graph-ts"
-import { Dca, CreateDCA } from "../generated/Dca/Dca"
-import { ExampleEntity } from "../generated/schema"
+import { Address, BigInt } from '@graphprotocol/graph-ts';
+import { CreateDCA } from '../generated/DcaFactory/DcaFactory';
+import { LogTransfer, Bentobox } from '../generated/Bentobox/Bentobox';
+import { ExecutedOrder, Factory, Vault } from '../generated/schema';
+import { ExecuteDCA, DcaVault as Dca, Withdraw } from '../generated/templates/DcaVault/DcaVault';
+import { DcaVault } from '../generated/templates';
+import { FACTORY } from './constant';
+import { log } from '@graphprotocol/graph-ts';
+
+function getOrCreateFactory(): Factory {
+  let factory = Factory.load(FACTORY);
+
+  if (factory === null) {
+    factory = new Factory(FACTORY);
+    factory.save();
+  }
+  return factory;
+}
+
+function createExecutedOrder(event: ExecuteDCA, vault: Vault): void {
+  let executedOrder = new ExecutedOrder(event.transaction.hash.toHex());
+
+  executedOrder.amount = event.params.amount;
+  executedOrder.timestamp = event.params.timestamp;
+  executedOrder.vault = vault.id;
+
+  executedOrder.save();
+}
+
+export function handleLogTransfer(event: LogTransfer): void {
+  let vault = Vault.load(event.params.to.toHex());
+  if (vault === null || event.params.token.toHex() != vault.sellToken.toHex()) {
+    return;
+  }
+  const bento = Bentobox.bind(event.address);
+  const amount = bento.toAmount(Address.fromBytes(vault.sellToken), event.params.share, false);
+  vault.balance = vault.balance.plus(amount);
+  if (vault.balance.ge(vault.amount)) {
+    vault.enoughBalanceToExecute = true;
+  }
+  vault.save();
+}
 
 export function handleCreateDCA(event: CreateDCA): void {
-  // Entities can be loaded from the store using a string ID; this ID
-  // needs to be unique across all entities of the same type
-  let entity = ExampleEntity.load(event.transaction.from.toHex())
+  DcaVault.create(event.params.newVault);
+  let vault = new Vault(event.params.newVault.toHex());
+  vault.factory = getOrCreateFactory().id;
 
-  // Entities only exist after they have been saved to the store;
-  // `null` checks allow to create entities on demand
-  if (!entity) {
-    entity = new ExampleEntity(event.transaction.from.toHex())
+  const newVault = Dca.bind(event.params.newVault);
+  vault.buyToken = newVault.buyToken();
+  vault.sellToken = newVault.sellToken();
+  const dcaData = newVault.dcaData();
+  vault.sellTokenPriceFeed = dcaData.value0;
+  vault.buyTokenPriceFeed = dcaData.value1;
+  vault.epochDuration = dcaData.value2;
+  vault.amount = dcaData.value4;
 
-    // Entity fields can be set using simple assignments
-    entity.count = BigInt.fromI32(0)
+  vault.save();
+}
+
+export function handleExecuteDCA(event: ExecuteDCA): void {
+  let address = event.transaction.to;
+  if (address === null) {
+    return;
   }
 
-  // BigInt and BigDecimal math are supported
-  entity.count = entity.count + BigInt.fromI32(1)
+  let vault = Vault.load(address.toHex());
+  if (vault === null) {
+    return;
+  }
 
-  // Entity fields can be set based on event parameters
-  entity.newVault = event.params.newVault
-  entity.ok = event.params.ok
+  vault.nextExecutableTimestamp = event.params.timestamp.plus(vault.epochDuration);
+  vault.totalSell = vault.totalSell.plus(vault.amount);
+  vault.totalBuy = vault.totalBuy.plus(event.params.amount);
+  vault.balance = vault.balance.minus(vault.amount);
+  if (vault.balance.lt(vault.amount)) {
+    vault.enoughBalanceToExecute = false;
+  }
 
-  // Entities can be written to the store with `.save()`
-  entity.save()
+  createExecutedOrder(event, vault);
 
-  // Note: If a handler doesn't require existing field values, it is faster
-  // _not_ to load the entity from the store. Instead, create it fresh with
-  // `new Entity(...)`, set the fields that should be updated and save the
-  // entity back to the store. Fields that were not set or unset remain
-  // unchanged, allowing for partial updates to be applied.
+  vault.save();
+}
 
-  // It is also possible to access smart contracts from mappings. For
-  // example, the contract that has emitted the event can be connected to
-  // with:
-  //
-  // let contract = Contract.bind(event.address)
-  //
-  // The following functions can then be called on this contract to access
-  // state variables and other data:
-  //
-  // - contract.bentobox(...)
-  // - contract.createDCA(...)
-  // - contract.implementation(...)
+export function handleWithdraw(event: Withdraw): void {
+  let vault = Vault.load(event.address.toHex());
+  if (vault === null) {
+    return;
+  }
+
+  const bento = Bentobox.bind(Address.fromString('0x0319000133d3ada02600f0875d2cf03d442c3367'));
+  const amount = bento.toAmount(Address.fromBytes(vault.sellToken), event.params.share, false);
+  vault.balance = vault.balance.minus(amount);
+  if (vault.balance.lt(vault.amount)) {
+    vault.enoughBalanceToExecute = false;
+  }
+  vault.save();
 }
