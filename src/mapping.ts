@@ -1,11 +1,11 @@
 import { Address, BigInt } from '@graphprotocol/graph-ts';
 import { CreateDCA } from '../generated/DcaFactory/DcaFactory';
 import { LogTransfer, Bentobox } from '../generated/Bentobox/Bentobox';
-import { ExecutedOrder, Factory, Vault } from '../generated/schema';
+import { ExecutedOrder, Factory, Token, Vault } from '../generated/schema';
 import { ExecuteDCA, DcaVault as Dca, Withdraw } from '../generated/templates/DcaVault/DcaVault';
 import { DcaVault } from '../generated/templates';
+import { ERC2O as ERC20 } from '../generated/DcaFactory/ERC2O';
 import { FACTORY } from './constant';
-import { log } from '@graphprotocol/graph-ts';
 
 function getOrCreateFactory(): Factory {
   let factory = Factory.load(FACTORY);
@@ -15,6 +15,19 @@ function getOrCreateFactory(): Factory {
     factory.save();
   }
   return factory;
+}
+
+function getOrCreateToken(address: Address): Token {
+  let token = Token.load(address.toHex());
+
+  if (token === null) {
+    token = new Token(address.toHex());
+    const erc20 = ERC20.bind(address);
+    token.decimals = BigInt.fromI32(erc20.decimals());
+    token.symbol = erc20.symbol();
+    token.save();
+  }
+  return token;
 }
 
 function createExecutedOrder(event: ExecuteDCA, vault: Vault): void {
@@ -30,11 +43,12 @@ function createExecutedOrder(event: ExecuteDCA, vault: Vault): void {
 
 export function handleLogTransfer(event: LogTransfer): void {
   let vault = Vault.load(event.params.to.toHex());
-  if (vault === null || event.params.token.toHex() != vault.sellToken.toHex()) {
+  if (vault === null || event.params.token.toHex() != vault.sellToken) {
     return;
   }
+
   const bento = Bentobox.bind(event.address);
-  const amount = bento.toAmount(Address.fromBytes(vault.sellToken), event.params.share, false);
+  const amount = bento.toAmount(event.params.token, event.params.share, false);
   vault.balance = vault.balance.plus(amount);
   if (vault.balance.ge(vault.amount)) {
     vault.enoughBalanceToExecute = true;
@@ -48,8 +62,8 @@ export function handleCreateDCA(event: CreateDCA): void {
   vault.factory = getOrCreateFactory().id;
 
   const newVault = Dca.bind(event.params.newVault);
-  vault.buyToken = newVault.buyToken();
-  vault.sellToken = newVault.sellToken();
+  vault.buyToken = getOrCreateToken(newVault.buyToken()).id;
+  vault.sellToken = getOrCreateToken(newVault.sellToken()).id;
   vault.owner = newVault.owner();
   const dcaData = newVault.dcaData();
   vault.sellTokenPriceFeed = dcaData.value0;
@@ -91,7 +105,7 @@ export function handleWithdraw(event: Withdraw): void {
   }
 
   const bento = Bentobox.bind(Address.fromString('0x0319000133d3ada02600f0875d2cf03d442c3367'));
-  const amount = bento.toAmount(Address.fromBytes(vault.sellToken), event.params.share, false);
+  const amount = bento.toAmount(Address.fromString(vault.sellToken), event.params.share, false);
   vault.balance = vault.balance.minus(amount);
   if (vault.balance.lt(vault.amount)) {
     vault.enoughBalanceToExecute = false;

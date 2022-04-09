@@ -7,9 +7,9 @@ type Vault @entity {
   id: ID!
   factory: Factory!
   owner: Bytes!
-  buyToken: Bytes!
+  buyToken: Token!
   buyTokenPriceFeed: Bytes!
-  sellToken: Bytes!
+  sellToken: Token!
   sellTokenPriceFeed: Bytes!
   amount: BigInt!
   balance: BigInt!
@@ -20,6 +20,12 @@ type Vault @entity {
   executedOrders: [ExecutedOrder!]! @derivedFrom(field: "vault")
   totalSell: BigInt!
   totalBuy: BigInt!
+}
+
+type Token @entity {
+  id: ID!
+  symbol: String!
+  decimals: BigInt!
 }
 
 type ExecutedOrder @entity {

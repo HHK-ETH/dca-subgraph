@@ -20,6 +20,8 @@ dataSources:
           file: ./abis/DcaFactory.json
         - name: DcaVault
           file: ./abis/DcaVault.json
+        - name: ERC2O
+          file: ./abis/ERC20.json
       eventHandlers:
         - event: CreateDCA(address,uint256)
           handler: handleCreateDCA
