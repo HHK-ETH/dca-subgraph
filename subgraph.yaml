@@ -47,6 +47,8 @@ dataSources:
       eventHandlers:
         - event: LogTransfer(indexed address,indexed address,indexed address,uint256)
           handler: handleLogTransfer
+        - event: LogDeposit(indexed address,indexed address,indexed address,uint256,uint256)
+          handler: handleLogDeposit
       file: ./src/mapping.ts
 
 templates:

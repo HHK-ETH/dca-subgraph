@@ -1,6 +1,6 @@
 import { Address, BigInt } from '@graphprotocol/graph-ts';
 import { CreateDCA } from '../generated/DcaFactory/DcaFactory';
-import { LogTransfer, Bentobox } from '../generated/Bentobox/Bentobox';
+import { LogTransfer, Bentobox, LogDeposit } from '../generated/Bentobox/Bentobox';
 import { ExecutedOrder, Factory, Token, Vault } from '../generated/schema';
 import { ExecuteDCA, DcaVault as Dca, Withdraw } from '../generated/templates/DcaVault/DcaVault';
 import { DcaVault } from '../generated/templates';
@@ -50,6 +50,19 @@ export function handleLogTransfer(event: LogTransfer): void {
   const bento = Bentobox.bind(event.address);
   const amount = bento.toAmount(event.params.token, event.params.share, false);
   vault.balance = vault.balance.plus(amount);
+  if (vault.balance.ge(vault.amount)) {
+    vault.enoughBalanceToExecute = true;
+  }
+  vault.save();
+}
+
+export function handleLogDeposit(event: LogDeposit): void {
+  let vault = Vault.load(event.params.to.toHex());
+  if (vault === null || event.params.token.toHex() != vault.sellToken) {
+    return;
+  }
+
+  vault.balance = vault.balance.plus(event.params.amount);
   if (vault.balance.ge(vault.amount)) {
     vault.enoughBalanceToExecute = true;
   }
